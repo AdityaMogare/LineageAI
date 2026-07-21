@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from lineageai import __version__
+from lineageai.api.routes import router as runs_router
 from lineageai.config import get_settings
 
 
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(runs_router)
 
     @app.get("/api/health", tags=["system"])
     def health() -> dict[str, str]:

@@ -1,7 +1,9 @@
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import interrupt
 
 from lineageai.agent.interfaces import MetadataProvider, ModelGenerator, ModelValidator
 from lineageai.models import GeneratedModel, MetadataContext, ValidationResult
@@ -22,6 +24,8 @@ def build_generation_graph(
     validator: ModelValidator,
     *,
     max_retries: int = 3,
+    pause_for_review: bool = False,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> CompiledStateGraph[AgentState, None, AgentState, AgentState]:
     if max_retries < 0:
         raise ValueError("max_retries must be non-negative")
@@ -54,9 +58,21 @@ def build_generation_graph(
     def mark_failed(state: AgentState) -> AgentState:
         return {"status": "failed"}
 
-    def route_after_validation(state: AgentState) -> Literal["generate", "complete", "failed"]:
+    def request_review(state: AgentState) -> AgentState:
+        decision = interrupt(
+            {
+                "draft": state["draft"].model_dump(mode="json"),
+                "validation": state["validation"].model_dump(mode="json"),
+            }
+        )
+        approved = bool(decision.get("approved")) if isinstance(decision, dict) else False
+        return {"status": "approved" if approved else "rejected"}
+
+    def route_after_validation(
+        state: AgentState,
+    ) -> Literal["generate", "complete", "review", "failed"]:
         if state["validation"].success:
-            return "complete"
+            return "review" if pause_for_review else "complete"
         if state.get("retry_count", 0) > max_retries:
             return "failed"
         return "generate"
@@ -66,11 +82,13 @@ def build_generation_graph(
     graph.add_node("generate", generate_model)
     graph.add_node("validate", validate_model)
     graph.add_node("complete", lambda state: {})
+    graph.add_node("review", request_review)
     graph.add_node("failed", mark_failed)
     graph.add_edge(START, "retrieve")
     graph.add_edge("retrieve", "generate")
     graph.add_edge("generate", "validate")
     graph.add_conditional_edges("validate", route_after_validation)
     graph.add_edge("complete", END)
+    graph.add_edge("review", END)
     graph.add_edge("failed", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
