@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from langchain_core.runnables import RunnableConfig
@@ -36,12 +36,17 @@ class InvalidRunTransitionError(RuntimeError):
     pass
 
 
+class ApprovedModelPublisher(Protocol):
+    def publish(self, run_id: str, model: GeneratedModel) -> dict[str, Any]: ...
+
+
 class RunService:
     def __init__(
         self,
         metadata_provider: MetadataProvider,
         generator: ModelGenerator,
         validator: ModelValidator,
+        publisher: ApprovedModelPublisher | None = None,
     ) -> None:
         self.checkpointer = InMemorySaver(
             serde=JsonPlusSerializer(
@@ -65,6 +70,8 @@ class RunService:
         )
         self.prompts: dict[str, str] = {}
         self.feedback: dict[str, str | None] = {}
+        self.publisher = publisher
+        self.publications: dict[str, dict[str, Any]] = {}
 
     def start(self, prompt: str) -> RunView:
         run_id = str(uuid4())
@@ -93,6 +100,9 @@ class RunService:
             resume,
             config=self._config(run_id),
         )
+        reviewed = self.get(run_id)
+        if reviewed.status == "approved" and reviewed.draft and self.publisher:
+            self.publications[run_id] = self.publisher.publish(run_id, reviewed.draft)
         return self.get(run_id)
 
     @staticmethod
@@ -108,4 +118,5 @@ class RunService:
             draft=state.get("draft"),
             validation=state.get("validation"),
             feedback=self.feedback.get(run_id),
+            publication=self.publications.get(run_id),
         )

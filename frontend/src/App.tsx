@@ -10,6 +10,10 @@ function App() {
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const pullRequestUrl =
+    typeof run?.publication?.pull_request_url === 'string'
+      ? run.publication.pull_request_url
+      : null
 
   async function submit() {
     setBusy(true)
@@ -152,6 +156,22 @@ function App() {
                       Approve
                     </button>
                   </div>
+                </div>
+              )}
+              {run.status === 'approved' && (
+                <div className="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">
+                  {pullRequestUrl ? (
+                    <a
+                      className="font-semibold underline"
+                      href={pullRequestUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open generated pull request
+                    </a>
+                  ) : (
+                    <p>Approved. Publishing is disabled until credentials are configured.</p>
+                  )}
                 </div>
               )}
             </div>

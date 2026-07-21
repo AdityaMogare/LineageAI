@@ -41,12 +41,26 @@ class Validator:
         return ValidationResult(success=True, command="dbt build")
 
 
-def service(context: MetadataContext) -> RunService:
-    return RunService(Provider(context), Generator(), Validator())
+class Publisher:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def publish(self, run_id: str, model: GeneratedModel) -> dict[str, object]:
+        self.calls += 1
+        return {
+            "status": "published",
+            "pull_request_url": "https://github.test/pr/1",
+            "dataset_urn": "urn:li:dataset:test",
+        }
+
+
+def service(context: MetadataContext, publisher: Publisher | None = None) -> RunService:
+    return RunService(Provider(context), Generator(), Validator(), publisher)
 
 
 def test_approval_resumes_interrupted_run(commerce_context: MetadataContext) -> None:
-    runs = service(commerce_context)
+    publisher = Publisher()
+    runs = service(commerce_context, publisher)
     created = runs.start("Build customer revenue")
 
     assert created.status == "awaiting_review"
@@ -58,6 +72,9 @@ def test_approval_resumes_interrupted_run(commerce_context: MetadataContext) -> 
     )
 
     assert approved.status == "approved"
+    assert approved.publication
+    assert approved.publication["status"] == "published"
+    assert publisher.calls == 1
 
 
 def test_rejection_is_terminal_without_publication(

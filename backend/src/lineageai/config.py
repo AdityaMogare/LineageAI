@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     datahub_token: str | None = Field(default=None, validation_alias="DATAHUB_TOKEN")
     datahub_platform: str = Field(default="duckdb", validation_alias="DATAHUB_PLATFORM")
     datahub_env: str = Field(default="DEV", validation_alias="DATAHUB_ENV")
+    metadata_mode: str = Field(default="demo", validation_alias="LINEAGEAI_METADATA_MODE")
+    datahub_datasets: list[str] = Field(
+        default_factory=lambda: ["orders", "customers", "products", "order_items"],
+        validation_alias="DATAHUB_DATASETS",
+    )
 
     github_token: str | None = Field(default=None, validation_alias="GITHUB_TOKEN")
     github_repository: str | None = Field(default=None, validation_alias="GITHUB_REPOSITORY")
