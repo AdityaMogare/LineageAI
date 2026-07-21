@@ -1,0 +1,13 @@
+LineageAI validation example (sanitized)
+
+Attempt 1
+dbt parse: PASS
+dbt build: FAIL
+kind: missing_column
+message: Referenced column "total" not found
+suggestion: Use a column present in the supplied DataHub schema.
+
+Attempt 2
+dbt parse: PASS
+dbt build: PASS
+result: awaiting_review

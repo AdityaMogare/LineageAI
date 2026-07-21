@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: customer_revenue
+    description: Revenue and order count by customer and region.
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+      - name: total_revenue
+        data_tests:
+          - not_null
