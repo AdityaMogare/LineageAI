@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
 import { type AgentRun, createRun, reviewRun } from './api'
+import { LineagePreview } from './components/LineagePreview'
+import { ValidationReport } from './components/ValidationReport'
 
 function App() {
   const [prompt, setPrompt] = useState(
@@ -124,6 +126,17 @@ function App() {
                     </span>
                   ))}
                 </div>
+              </div>
+              <div className="mb-6">
+                <LineagePreview
+                  inputDatasets={run.draft.input_datasets}
+                  modelName={run.draft.name}
+                  showDatahubNote={run.status === 'awaiting_review'}
+                />
+                <ValidationReport
+                  retryCount={run.retry_count}
+                  validation={run.validation}
+                />
               </div>
               <CodePanel label="SQL" value={run.draft.sql} />
               <CodePanel label="schema.yml" value={run.draft.schema_yml} />
