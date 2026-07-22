@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     datahub_env: str = Field(default="DEV", validation_alias="DATAHUB_ENV")
     metadata_mode: str = Field(default="demo", validation_alias="LINEAGEAI_METADATA_MODE")
     datahub_datasets: list[str] = Field(
-        default_factory=lambda: ["orders", "customers", "products", "order_items"],
+        default_factory=lambda: ["orders", "customers", "products", "order_items", "payments"],
         validation_alias="DATAHUB_DATASETS",
     )
 

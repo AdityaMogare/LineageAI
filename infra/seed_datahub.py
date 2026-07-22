@@ -76,6 +76,18 @@ TABLES = (
         25_000,
         ("orders", "products"),
     ),
+    Table(
+        "payments",
+        (
+            ("payment_id", "BIGINT", False, True),
+            ("order_id", "BIGINT", False, False),
+            ("amount", "DECIMAL(12,2)", False, False),
+            ("method", "VARCHAR", False, False),
+            ("paid_at", "TIMESTAMP", False, False),
+        ),
+        9_500,
+        ("orders",),
+    ),
 )
 
 
