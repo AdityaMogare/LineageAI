@@ -161,7 +161,10 @@ contains mutating operations such as `DROP`, `DELETE`, `UPDATE`, or `INSERT`.
 ### Metadata and Publication Integrations
 
 - `backend/src/lineageai/integrations/demo.py`
-  - Deterministic local metadata for `orders` and `customers`
+  - Deterministic local metadata for `customers`, `products`, `orders`,
+    `order_items`, and `payments`, with explicit foreign keys, profile
+    ranges, and sample values
+  - Mirrors the datasets seeded by `infra/seed_datahub.py`
   - Default development mode
 - `backend/src/lineageai/integrations/datahub.py`
   - `DataHubMetadataProvider` reads schema, profile, and upstream-lineage
@@ -317,10 +320,13 @@ Backend tests are under `backend/tests/`:
 - `test_datahub_retrieval.py` — DataHub read adapter
 - `test_publishing.py` — GitHub idempotency, DataHub aspects, partial retry
 - `test_end_to_end.py` — prompt, one real correction, approval, publication
+- `test_demo.py` — five demo tables, FK integrity, lineage/FK consistency,
+  stub database build
+- `test_scenarios.py` — scenarios runner flows and example artifact output
 
 Frontend behavior is tested in `frontend/src/App.test.tsx`.
 
-The local suite currently covers 46 backend tests and 2 frontend tests.
+The local suite currently covers 52 backend tests and 13 frontend tests.
 External calls are replaced with typed fakes; live Moonshot, DataHub, and
 GitHub smoke tests require credentials and running services.
 
@@ -339,14 +345,19 @@ vite build
 ## 9. Infrastructure and Examples
 
 - `infra/seed_datahub.py`
-  - Seeds `customers`, `products`, `orders`, and `order_items`
+  - Seeds `customers`, `products`, `orders`, `order_items`, and `payments`
   - Adds schemas, row counts, key annotations, and lineage
-- `examples/customer_revenue.sql`
-  - Example generated dbt model
-- `examples/customer_revenue.yml`
-  - Example dbt tests
-- `examples/validation.log`
-  - Sanitized failure-and-correction trace
+- `backend/src/lineageai/scenarios.py`
+  - `python -m lineageai.scenarios` runs the three demo flows (happy path,
+    self-healing, complex lineage) through the real RunService and
+    DbtValidator with a scripted generator; no external keys required
+  - `--write-examples` regenerates `examples/<scenario>/`
+- `examples/happy_path/`, `examples/self_healing/`, `examples/complex_lineage/`
+  - Prompt, generated SQL, `schema.yml`, and validation trace per scenario,
+    produced by the scenarios runner
+- `examples/customer_revenue.sql`, `examples/customer_revenue.yml`,
+  `examples/validation.log`
+  - Original flat example artifacts
 
 ## 10. Local Setup
 
@@ -396,11 +407,8 @@ npm run build
 
 - Run state is in memory and disappears when the API restarts.
 - API run creation is synchronous; the frontend does not poll or stream.
-- Demo metadata contains only `orders` and `customers`; the seed script creates
-  four datasets.
-- The frontend shows input datasets as badges, not a graphical lineage view.
-- Validation diagnostics are returned by the API but are not rendered in the
-  review UI.
+- The frontend shows input datasets as badges plus a two-column SVG lineage
+  preview; there is no full DAG explorer.
 - Rejection is terminal; there is no edit-and-resubmit path.
 - Each run generates one model and one YAML file.
 - The DataHub SDK is used directly rather than a separate DataHub MCP Server.

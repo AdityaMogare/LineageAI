@@ -1,0 +1,4 @@
+attempt 1: failure (dbt build, 4.6s)
+  [missing_column] line 11 22:42:04  Done. PASS=0 WARN=0 ERROR=1 SKIP=1 NO-OP=0 REUSED=0 TOTAL=2
+  suggestion: Use a column present in the supplied DataHub schema.
+attempt 2: success (dbt build, 4.6s)

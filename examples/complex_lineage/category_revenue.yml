@@ -1,0 +1,7 @@
+version: 2
+models:
+  - name: category_revenue
+    columns:
+      - name: category
+        data_tests:
+          - not_null

@@ -104,12 +104,67 @@ Commit: `feat: surface lineage and validation in the review panel`
   query switched to `getByRole('heading')` because the name now also
   appears inside the SVG.
 
+### Step 5 — Demo metadata expansion (`backend/src/lineageai/integrations/demo.py`)
+
+Commit: `feat: expand demo metadata to five related tables`
+
+- `DemoMetadataProvider` now serves `customers`, `products`, `orders`,
+  `order_items`, and `payments`.
+- **Decision:** the fifth table is `payments` (not `regions`).
+  *Rationale:* `region` already exists as a column on `customers`, so a
+  `regions` dimension would duplicate information; payments adds a new join
+  path (`payments.order_id -> orders.id`), a new owner (`finance`), and an
+  interesting left-join case for generated models.
+- **Decision:** schemas mirror `infra/seed_datahub.py` exactly, and
+  `payments` was added to the seed script and `DATAHUB_DATASETS` defaults in
+  the same commit. *Rationale:* demo mode and DataHub mode must describe the
+  same world, or prompts that work in the demo break against the live
+  catalog.
+- **Decision:** columns carry `min_value`/`max_value` ranges and
+  `sample_values` (regions, categories, payment methods). *Rationale:*
+  `StubDatabaseBuilder` uses these to seed realistic DuckDB rows, so demo
+  validation exercises the same value-aware paths as profiled DataHub
+  metadata.
+- Tests (`backend/tests/test_demo.py`): table set, FK referential integrity
+  (every FK points at a real dataset and column), lineage map consistent
+  with FKs, and a stub-database build from the demo context.
+
+### Step 6 — Scenarios runner (`backend/src/lineageai/scenarios.py`)
+
+Commit: `feat: add scenarios runner for the three demo flows`
+
+- `python -m lineageai.scenarios` executes `happy_path`, `self_healing`,
+  and `complex_lineage`; `--write-examples` regenerates
+  `examples/<scenario>/` with prompt, SQL, YAML, and a validation trace.
+- **Decision:** scenarios drive the real `RunService` -> LangGraph ->
+  `DbtValidator` pipeline; only the LLM is a `ScriptedGenerator` returning
+  pre-written drafts in order. *Rationale:* every failure, correction, and
+  dbt build in the traces is real, and no `MOONSHOT_API_KEY` is needed —
+  consistent with the frontend-first, keys-last plan.
+- **Decision:** `self_healing` submits a draft with a misspelled column
+  (`regoin`) first, then the corrected SQL, asserting exactly one retry.
+  *Rationale:* proves the diagnostic-driven correction loop with a real
+  `missing_column` diagnostic from the error parser.
+- **Decision:** `complex_lineage` joins all five demo tables (including a
+  left join to `payments`). *Rationale:* exercises the widest lineage fan-in
+  the `LineagePreview` supports (5 inputs).
+- **Decision:** every scenario directory gets the same uniform artifact set
+  (`prompt.md`, `<model>.sql`, `<model>.yml`, `validation.log`) instead of
+  bespoke files per scenario. *Rationale:* one writer function, and the
+  self-healing `validation.log` already contains the error-and-fix
+  narrative (attempt 1 failure with diagnostics, attempt 2 success).
+- Tests (`backend/tests/test_scenarios.py`): flow list, exit code 0, all
+  artifacts written, and the self-healing trace shows failure-then-success.
+
 ## Verification (all green as of this phase)
 
 ```text
 npm run lint      # oxlint, no warnings
 npm test -- --run # 13 tests, 3 files
 npm run build     # tsc -b && vite build, succeeds
+ruff check / ruff format --check / mypy backend/src   # clean
+pytest            # 52 backend tests
+python -m lineageai.scenarios   # 3/3 scenarios ok, exit 0
 ```
 
 ## Acceptance criteria
@@ -130,17 +185,20 @@ npm run build     # tsc -b && vite build, succeeds
 - ✅ Shows model name (dynamic or "generated_model")
 - ✅ Optional note about DataHub write-back
 
-### Backend (unchanged this phase)
+### Backend
 - ✅ DemoMetadataProvider has 5 tables with realistic schemas
 - ✅ FK relationships defined correctly
-- ✅ All 46 tests pass: `pytest backend/tests/ -v`
+- ✅ All 52 tests pass: `pytest backend/tests/ -v`
 - ✅ Type mapping handles INT, VARCHAR, DECIMAL, TIMESTAMP
 - ✅ Scenarios runner executes all 3 scenarios without errors
+  (`python -m lineageai.scenarios`)
 
 ### Examples
-- ✅ `examples/happy_path/` contains: prompt, SQL, YAML, validation_log
-- ✅ `examples/self_healing/` contains: prompt, error_and_fix.md, validation traces
-- ✅ `examples/complex_lineage/` contains: prompt, SQL, lineage notes
+- ✅ `examples/happy_path/` contains: prompt, SQL, YAML, validation log
+- ✅ `examples/self_healing/` contains: prompt, SQL, YAML, and a validation
+  trace showing the failed attempt, its diagnostics, and the fix
+- ✅ `examples/complex_lineage/` contains: prompt, five-table SQL, YAML,
+  validation log (lineage is captured in `input_datasets` and the trace)
 - ✅ All examples use realistic, interesting data
 
 ### Documentation

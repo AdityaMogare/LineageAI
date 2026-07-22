@@ -67,15 +67,16 @@ python infra/seed_datahub.py
 
 DataHub is available at <http://localhost:9002>; the API defaults to
 `http://localhost:8080`. The seed creates `customers`, `products`, `orders`,
-and `order_items`, including schemas, row counts, primary-key annotations, and
-lineage relationships.
+`order_items`, and `payments`, including schemas, row counts, primary-key
+annotations, and lineage relationships. Demo metadata mode serves the same
+five tables locally without DataHub.
 
 Then update `.env`:
 
 ```dotenv
 LINEAGEAI_METADATA_MODE=datahub
 DATAHUB_GMS_URL=http://localhost:8080
-DATAHUB_DATASETS=["orders","customers","products","order_items"]
+DATAHUB_DATASETS=["orders","customers","products","order_items","payments"]
 ```
 
 For authenticated DataHub deployments, also set `DATAHUB_TOKEN`.
@@ -114,12 +115,26 @@ forms, real dbt success/failure, Kimi payload validation, retries, exhausted
 retries, checkpointed approval/rejection, GitHub idempotency, DataHub aspects,
 and a complete prompt → one correction → approval → publication scenario.
 
-The [`examples`](examples/) directory contains a generated model, its tests,
-and a sanitized two-attempt validation log.
+The [`examples`](examples/) directory contains one folder per demo scenario
+(`happy_path/`, `self_healing/`, `complex_lineage/`), each with the prompt,
+generated SQL, `schema.yml`, and a validation trace.
+
+## Demo scenarios
+
+Run the three end-to-end scenarios without any API keys — the real LangGraph
+loop and dbt validation execute, and only the LLM is scripted:
+
+```bash
+.venv/bin/python -m lineageai.scenarios                  # run and summarize
+.venv/bin/python -m lineageai.scenarios --write-examples # regenerate examples/
+```
+
+`happy_path` validates first try, `self_healing` recovers from a misspelled
+column after one correction, and `complex_lineage` joins all five demo tables.
 
 ## Three-minute demo
 
-1. Show the four seeded datasets and lineage in DataHub.
+1. Show the five seeded datasets and lineage in DataHub.
 2. Enter “Build customer revenue by region from orders and customers.”
 3. Use the deterministic demo fixture to show one missing-column failure and
    the automatic correction.
